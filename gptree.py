@@ -1,25 +1,37 @@
 import operator
 import random, numpy, math
 from deap import creator, base, tools, gp, algorithms
+from sklearn.metrics import r2_score as r2
+import itertools
 
-
-'''
-IMPORT DATASET TODO
-'''
-
+import data_man
 
 '''
 DEFINE PRIMIITIVE SET
 '''
-
-pset = gp.PrimitiveSet("MAIN", 1)
-pset.addPrimitive(operator.add, 2)
-pset.addPrimitive(operator.sub, 2)
-pset.addPrimitive(operator.mul, 2)
-#pset.addPrimitive(operator.truediv, 2) #TODO prevent division by zero
-pset.renameArguments(ARG0='x')
+def protectedDiv(left, right):
+    try:
+        return numpy.true_divide(left, right)
+    except ZeroDivisionError:
+        return left
 
 
+#pset = gp.PrimitiveSet("MAIN", data_man.dummydiamond_xs.shape[1])
+pset = gp.PrimitiveSetTyped("MAIN", itertools.repeat(float, len(data_man.points)), float)
+pset.addPrimitive(numpy.add, 2)
+pset.addPrimitive(numpy.subtract, 2)
+pset.addPrimitive(numpy.multiply, 2)
+pset.addPrimitive(protectedDiv, 2)
+
+
+
+''' Give Args descriptive names
+args = data_man.args
+
+for i in range(len(args)):
+    pset.renameArguments(args[i])
+
+'''
 
 '''
 CREATE
@@ -40,18 +52,22 @@ toolbox.register("compile", gp.compile, pset=pset)
 '''
 FITNESS FUNCTION: TODO
 '''
-def evalSymbReg(individual, points):
+def evalSymbReg(individual): #, points):
     # Transform the tree expression in a callable function
     func = toolbox.compile(expr=individual)
     # Evaluate the mean squared error between the expression
-    sqerrors = (func(x)*3 for x in points) #replace with adj r^2
-    return math.fsum(sqerrors) / len(points),
+    errors = (func(data_man.dummydiamond_xs) - data_man.diamond_y_price)# for x in points) #replace with adj r^2
+
+    result = sum(float(func(*diamond[1:])) - float(diamond[0]) for diamond in data_man.dummydiamonds)
+    return result #math.fsum(errors) / len(points),
 
 
 '''
 DEFINE TOOLBOX CONT.
 '''
-toolbox.register("evaluate", evalSymbReg, points=(1.0,)) #TODO points will refer to regressor variables from the dataset
+#print(data_man.diamond_xs)
+#print(data_man.diamond_xs.to_numpy)
+toolbox.register("evaluate", evalSymbReg) #, points=data_man.points) #TODO points will refer to regressor variables from the dataset
 toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=2, fitness_first=True)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
