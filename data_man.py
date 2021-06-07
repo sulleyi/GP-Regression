@@ -4,10 +4,24 @@ import csv
 
 
 ''' HOW THEY IMPOT DATA IN THE EXAMPLE GP PROGRAM
+
+
 with open("data.csv") as database:
     dataReader = csv.reader(database)
-    data = list(list(float(elem) for elem in row) for row in dataReader)
+    data = list(list(elem for elem in row) for row in dataReader)
+
+for row in data:
+    row = row[1:]
+    #print(row)
+    if row[0] == "M":
+        row[0] = True
+        
+        
+    else:
+        row[0] = False
+        
 '''
+
 class_to_num = {
     "B" : 0,
     "M" : 1
@@ -39,6 +53,8 @@ print(cancer_xs)
 print("cancer y: ")
 print(breastcancer["diagnosis"])
 
-
+'''
 for col in breastcancer:
     print(col)
+
+'''

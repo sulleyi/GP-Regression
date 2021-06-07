@@ -69,7 +69,7 @@ toolbox.register("compile", gp.compile, pset=pset)
 
 
 '''
-FITNESS FUNCTION: TODO
+FITNESS FUNCTION:
 '''
 def evalSymbReg(individual):
 
@@ -77,17 +77,32 @@ def evalSymbReg(individual):
     # Transform the tree expression in a callable function
     func = toolbox.compile(expr=individual)
 
+    sum_error = 0
 
     '''
-    TODO FIX THIS ISSUE P
-    '''
-    
-    predicted = data_man.cancer_xs.apply(func, axis=1) 
+    ERROR IS HERE
 
+    I am very unfamiliar with python/pandas/DEAP so this has been quite challengenging to debug and simplify. line 78 compiles an indivual GP tree from the pset defined in line 20. 
+    The tree is supposed to take 28 arguements, one for each regressor (x) variable in the dataset. I then want to loop through each  datapoint in the dataset and see if the predicted
+    classification matches the labeled correct classification (located in column 0). The issue that occurs is that I cannot split the dataframe columns from each datapoint correctly,
+    and get the error that the number of arguements do not match what func requires. Ive tried importing data both with the csv module and with pandas. I have tried to apply 'func' to
+    the columns in multiple ways (using pandas.iterrows() line 93, pandas.apply() line 101, as well as manually looping though each 2-D index line 103. I have also attempted using different datasets. I've been
+    struggling with this for close to 20 hours at this point and I am not sure how to proceed....
+   
+   '''
+    for datapoint in data_man.breastcancer.iterrows():
+        predicition = bool(func(*datapoint[1:31]))
+        actual = datapoint[0]
+        error = predicition is actual
+
+        sum_error+=error
+
+
+    #predicted = data_man.cancer_xs.apply(func, axis=1) 
     # Evaluate the error between predicted and actual
-    error = sum(bool(predicted) - bool(data_man.diagnosis))
-    return error / len(predicted)
+    #sum_error = sum(bool(func(*datapoint[1:31])) is datapoint[0] for datapoint in data_man.breastcancer) # This line returns an an error that I am missing 21 positional arguements when calling 'func'
 
+    return sum_error, #/ len(predicted)
 
 '''
 DEFINE TOOLBOX CONT.
