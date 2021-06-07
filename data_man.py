@@ -1,44 +1,44 @@
 import pandas as pd
 import numpy as np
+import csv
 
 
+''' HOW THEY IMPOT DATA IN THE EXAMPLE GP PROGRAM
+with open("data.csv") as database:
+    dataReader = csv.reader(database)
+    data = list(list(float(elem) for elem in row) for row in dataReader)
 '''
-IMPORT DATASET TODO
-'''
-diamonds = pd.read_csv('Diamond_Data.csv')
-print(diamonds)
-diamonds.dropna
-dummydiamonds = pd.get_dummies(diamonds)
+class_to_num = {
+    "B" : 0,
+    "M" : 1
+    }
 
-diamond_y_price = diamonds.iloc[:, np.r_[0]]
-print(diamond_y_price)
-diamond_xs = diamonds.iloc[:, np.r_[1:7]]
-print(diamond_xs)
-dummydiamond_xs = pd.get_dummies(diamond_xs)
+def class_to_num(row):
+    if row == "M":
+        return 1
+    else:
+        return 0
 
-def getColumnNames(df):
-    
-    argsdict ={}
-    args = []
-    for i in range(df.shape[1]):
-        print(df.columns[i])
-        argsdict["ARG{0}".format(i)] = df.columns[i]
-        args.append(df.columns[i])
-    print(argsdict)
-    return args
+breastcancer = pd.read_csv('data.csv')
+breastcancer = breastcancer.iloc[:, 1:31]
+breastcancer['diagnosis'] = breastcancer['diagnosis'].apply(class_to_num)
+
+print("breastcancer info: ")
+print(breastcancer.info())
 
 
-args = getColumnNames(dummydiamond_xs)
-print(args)
-
-points = []
-for i in range(dummydiamond_xs.shape[1]):
-    points.append(list(dummydiamond_xs.iloc[:, np.r_[i]]
-))
+diagnosis = breastcancer['diagnosis']
+print("diagnosis")
+print(diagnosis)
 
 
+cancer_xs = breastcancer.iloc[:, 1:]
+print("cancer xs: ")
+print(cancer_xs)
+
+print("cancer y: ")
+print(breastcancer["diagnosis"])
 
 
-#points = tuple(dummydiamond_xs[:, i:i+1] for i in range(dummydiamond_xs.shape[1] -1))
-print("points =")
-print(points)
+for col in breastcancer:
+    print(col)

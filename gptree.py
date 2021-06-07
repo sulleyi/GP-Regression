@@ -3,7 +3,7 @@ import random, numpy, math
 from deap import creator, base, tools, gp, algorithms
 from sklearn.metrics import r2_score as r2
 import itertools
-
+import csv
 import data_man
 
 '''
@@ -11,19 +11,38 @@ DEFINE PRIMIITIVE SET
 '''
 def protectedDiv(left, right):
     try:
-        return numpy.true_divide(left, right)
+        return operator.truediv(left, right)
     except ZeroDivisionError:
-        return left
+        return 1
 
 
 #pset = gp.PrimitiveSet("MAIN", data_man.dummydiamond_xs.shape[1])
-pset = gp.PrimitiveSetTyped("MAIN", itertools.repeat(float, len(data_man.points)), float)
-pset.addPrimitive(numpy.add, 2)
-pset.addPrimitive(numpy.subtract, 2)
-pset.addPrimitive(numpy.multiply, 2)
-pset.addPrimitive(protectedDiv, 2)
+pset = gp.PrimitiveSetTyped("MAIN", itertools.repeat(float, data_man.cancer_xs.shape[1]), bool)
+pset.addPrimitive(numpy.add, [float, float], float)
+pset.addPrimitive(numpy.subtract, [float, float], float)
+pset.addPrimitive(numpy.multiply, [float, float], float)
+#pset.addPrimitive(protectedDiv, [float, float], float)
 
+# boolean operators
+pset.addPrimitive(operator.and_, [bool, bool], bool)
+pset.addPrimitive(operator.or_, [bool, bool], bool)
+pset.addPrimitive(operator.not_, [bool], bool)
 
+# logic operators
+
+# Define a new if-then-else function
+def if_then_else(input, output1, output2):
+    if input: return output1
+    else: return output2
+
+pset.addPrimitive(operator.lt, [float, float], bool)
+pset.addPrimitive(operator.eq, [float, float], bool)
+pset.addPrimitive(if_then_else, [bool, float, float], float)
+
+# terminals
+pset.addEphemeralConstant("rand100", lambda: random.random() * 100, float)
+pset.addTerminal(False, bool)
+pset.addTerminal(True, bool)
 
 ''' Give Args descriptive names
 args = data_man.args
@@ -52,22 +71,29 @@ toolbox.register("compile", gp.compile, pset=pset)
 '''
 FITNESS FUNCTION: TODO
 '''
-def evalSymbReg(individual): #, points):
+def evalSymbReg(individual):
+
+
     # Transform the tree expression in a callable function
     func = toolbox.compile(expr=individual)
-    # Evaluate the mean squared error between the expression
-    errors = (func(data_man.dummydiamond_xs) - data_man.diamond_y_price)# for x in points) #replace with adj r^2
 
-    result = sum(float(func(*diamond[1:])) - float(diamond[0]) for diamond in data_man.dummydiamonds)
-    return result #math.fsum(errors) / len(points),
+
+    '''
+    TODO FIX THIS ISSUE P
+    '''
+    
+    predicted = data_man.cancer_xs.apply(func, axis=1) 
+
+    # Evaluate the error between predicted and actual
+    error = sum(bool(predicted) - bool(data_man.diagnosis))
+    return error / len(predicted)
 
 
 '''
 DEFINE TOOLBOX CONT.
 '''
-#print(data_man.diamond_xs)
-#print(data_man.diamond_xs.to_numpy)
-toolbox.register("evaluate", evalSymbReg) #, points=data_man.points) #TODO points will refer to regressor variables from the dataset
+
+toolbox.register("evaluate", evalSymbReg) ## THIS CALLS THE EVALUATION FUNCTION
 toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=2, fitness_first=True)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
