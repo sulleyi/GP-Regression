@@ -54,7 +54,17 @@ print("cancer y: ")
 print(breastcancer["diagnosis"])
 
 '''
-for col in breastcancer:
-    print(col)
+def getColumnNames(df):
 
+    argsdict ={}
+    args = []
+    for i in range(df.shape[1]):
+        print(df.columns[i])
+        argsdict["ARG{0}".format(i)] = df.columns[i]
+        args.append(df.columns[i])
+    print(argsdict)
+    return argsdict
+
+
+args = getColumnNames(cancer_xs)
 '''

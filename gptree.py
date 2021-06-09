@@ -1,9 +1,11 @@
 import operator
 import random, numpy, math
+from deap.tools.support import Logbook
 from deap import creator, base, tools, gp, algorithms
 from sklearn.metrics import r2_score as r2
 import itertools
-import csv
+import matplotlib.pyplot as plt
+import networkx as nx
 import data_man
 
 '''
@@ -18,10 +20,10 @@ def protectedDiv(left, right):
 
 #pset = gp.PrimitiveSet("MAIN", data_man.dummydiamond_xs.shape[1])
 pset = gp.PrimitiveSetTyped("MAIN", itertools.repeat(float, data_man.cancer_xs.shape[1]), bool)
-pset.addPrimitive(numpy.add, [float, float], float)
-pset.addPrimitive(numpy.subtract, [float, float], float)
-pset.addPrimitive(numpy.multiply, [float, float], float)
-#pset.addPrimitive(protectedDiv, [float, float], float)
+pset.addPrimitive(operator.add, [float, float], float)
+pset.addPrimitive(operator.sub, [float, float], float)
+pset.addPrimitive(operator.mul, [float, float], float)
+pset.addPrimitive(protectedDiv, [float, float], float)
 
 # boolean operators
 pset.addPrimitive(operator.and_, [bool, bool], bool)
@@ -37,20 +39,18 @@ def if_then_else(input, output1, output2):
 
 pset.addPrimitive(operator.lt, [float, float], bool)
 pset.addPrimitive(operator.eq, [float, float], bool)
-pset.addPrimitive(if_then_else, [bool, float, float], float)
+pset.addPrimitive(operator.le, [float, float], bool)
+pset.addPrimitive(operator.gt, [float, float], bool)
+pset.addPrimitive(operator.ge, [float, float], bool)
+#pset.addPrimitive(if_then_else, [bool, float, float], float)
 
 # terminals
 pset.addEphemeralConstant("rand100", lambda: random.random() * 100, float)
 pset.addTerminal(False, bool)
 pset.addTerminal(True, bool)
 
-''' Give Args descriptive names
-args = data_man.args
+#pset.renameArguments(**data_man.args) #rename args
 
-for i in range(len(args)):
-    pset.renameArguments(args[i])
-
-'''
 
 '''
 CREATE
@@ -73,51 +73,36 @@ FITNESS FUNCTION:
 '''
 def evalSymbReg(individual):
 
+    random_classifier_accuracy = 0.5324699392
 
     # Transform the tree expression in a callable function
     func = toolbox.compile(expr=individual)
 
     sum_error = 0
-
-    '''
-    ERROR IS HERE
-
-    I am very unfamiliar with python/pandas/DEAP so this has been quite challengenging to debug and simplify. line 78 compiles an indivual GP tree from the pset defined in line 20. 
-    The tree is supposed to take 28 arguements, one for each regressor (x) variable in the dataset. I then want to loop through each  datapoint in the dataset and see if the predicted
-    classification matches the labeled correct classification (located in column 0). The issue that occurs is that I cannot split the dataframe columns from each datapoint correctly,
-    and get the error that the number of arguements do not match what func requires. Ive tried importing data both with the csv module and with pandas. I have tried to apply 'func' to
-    the columns in multiple ways (using pandas.iterrows() line 93, pandas.apply() line 101, as well as manually looping though each 2-D index line 103. I have also attempted using different datasets. I've been
-    struggling with this for close to 20 hours at this point and I am not sure how to proceed....
-   
-   '''
     for datapoint in data_man.breastcancer.iterrows():
-        predicition = bool(func(*datapoint[1:31]))
-        actual = datapoint[0]
-        error = predicition is actual
 
-        sum_error+=error
+        # Evaluate the error between predicted and actual
+        predicition = bool(func(*datapoint[1][1:31]))
+        #print("prediction: {0}", predicition)
+        actual = bool(datapoint[1][0])
+        #print("actual: {0}", actual)
+        if not(predicition) is actual:
+            sum_error+=1
 
-
-    #predicted = data_man.cancer_xs.apply(func, axis=1) 
-    # Evaluate the error between predicted and actual
-    #sum_error = sum(bool(func(*datapoint[1:31])) is datapoint[0] for datapoint in data_man.breastcancer) # This line returns an an error that I am missing 21 positional arguements when calling 'func'
-
-    return sum_error, #/ len(predicted)
+    accuracy = (data_man.cancer_xs.shape[0] - sum_error) / data_man.cancer_xs.shape[0]
+    kappa = (accuracy - random_classifier_accuracy) / (1 - random_classifier_accuracy)
+    return kappa, 
 
 '''
 DEFINE TOOLBOX CONT.
 '''
 
 toolbox.register("evaluate", evalSymbReg) ## THIS CALLS THE EVALUATION FUNCTION
-toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=2, fitness_first=True)
+#toolbox.register("select", tools.selTournament, tournsize=3, fit_attr="fitness") #single tournament selection  
+toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=1.6, fitness_first=True)
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr_mut, pset=pset)
-
-
-#TODO see if these decorators are neccessary with Double Tournament vs Single Tournament
-toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
-toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=17))
 
 
 '''
@@ -125,9 +110,19 @@ START EVOLUTION
 '''
 def run(popsize, gens, cxpb, mutpb):
     pop = toolbox.population(popsize)
-    hof = tools.HallOfFame(1)
+    hof = tools.HallOfFame(5)
     pop, log = algorithms.eaSimple(pop, toolbox, cxpb, mutpb, gens, stats=mstats, halloffame=hof, verbose=True)
 
+    summary_plots(hof, log)
+    
+
+
+
+
+def summary_plots(hof, log):
+    print_hof(hof)
+    graph_avg_fitness(log)
+    graph_max_fitness(log)
 
 
 '''
@@ -143,6 +138,52 @@ mstats.register("min", numpy.min)
 mstats.register("max", numpy.max)
 
 
+'''
+GRAPHING
+'''
+def print_hof(hof):
+    for i in range(len(hof)):
+        graph_ind(hof[i], i)
+
+        #print("HOF" + str(i) + "fitness: " +  str(hof[i].fitness))
+
+
+def graph_ind(ind, i):
+
+    nodes, edges, labels = gp.graph(ind)
+
+    g = nx.Graph()
+    g.add_nodes_from(nodes)
+    g.add_edges_from(edges)
+    pos = nx.drawing.nx_agraph.graphviz_layout(g, prog="dot")
+
+    nx.draw_networkx_nodes(g, pos)
+    nx.draw_networkx_edges(g, pos)
+    nx.draw_networkx_labels(g, pos, labels)
+
+    plt.title("Hall of Fame #" + str(i) + ", fitness =" + str(ind.fitness))
+    plt.show()
+
+def graph_avg_fitness(log):
+    gen = log.select('gen')
+    avg = log.chapters['fitness'].select('avg')
+    #make figure
+    fig, ax = plt.subplots()
+    ax.scatter(gen, avg)
+    ax.set(xlabel = "# of Evalulations", ylabel = "Average Fitness of Gen")
+    ax.grid()
+    plt.show()
+
+
+def graph_max_fitness(log):
+    gen = log.select('gen')
+    avg = log.chapters['fitness'].select('max')
+    #make figure
+    fig, ax = plt.subplots()
+    ax.scatter(gen, avg)
+    ax.set(xlabel = "# of Evalulations", ylabel = "Max Individual Fitness in Gen")
+    ax.grid()
+    plt.show()
 
 if(__name__ == "__main__"):
-    run(100, 100, 0.5, 0.1)
+    run(200, 500, 0.5, 0.08)
