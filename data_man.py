@@ -53,6 +53,16 @@ print(cancer_xs)
 print("cancer y: ")
 print(breastcancer["diagnosis"])
 
+
+breastcancer_copy = breastcancer.copy()
+train_w_replacement = breastcancer_copy.sample(frac=.8, replace=True, random_state=55)
+test_w_replacement = breastcancer_copy.drop(train_w_replacement.index)
+
+breastcancer_copy = breastcancer.copy()
+train_wo_replacement = breastcancer_copy.sample(frac=.8, replace=False, random_state=55)
+test_wo_replacement = breastcancer_copy.drop(train_w_replacement.index)
+
+
 '''
 def getColumnNames(df):
 

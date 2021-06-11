@@ -69,9 +69,9 @@ toolbox.register("compile", gp.compile, pset=pset)
 
 
 '''
-FITNESS FUNCTION:
+FITNESS FUNCTIONS:
 '''
-def evalSymbReg(individual):
+def evalSymbRegTotal(individual):
 
     random_classifier_accuracy = 0.5324699392
 
@@ -93,11 +93,56 @@ def evalSymbReg(individual):
     kappa = (accuracy - random_classifier_accuracy) / (1 - random_classifier_accuracy)
     return kappa, 
 
+def evalSymbReg_W_Replacement(individual):
+
+    random_classifier_accuracy = 0.5324699392
+
+    # Transform the tree expression in a callable function
+    func = toolbox.compile(expr=individual)
+
+    sum_error = 0
+    for datapoint in data_man.train_w_replacement.iterrows():
+
+        # Evaluate the error between predicted and actual
+        predicition = bool(func(*datapoint[1][1:31]))
+        #print("prediction: {0}", predicition)
+        actual = bool(datapoint[1][0])
+        #print("actual: {0}", actual)
+        if not(predicition) is actual:
+            sum_error+=1
+
+    accuracy = (data_man.cancer_xs.shape[0] - sum_error) / data_man.cancer_xs.shape[0]
+    kappa = (accuracy - random_classifier_accuracy) / (1 - random_classifier_accuracy)
+    return kappa, 
+
+def evalSymbReg_Wo_Replacement(individual):
+
+    random_classifier_accuracy = 0.5324699392
+
+    # Transform the tree expression in a callable function
+    func = toolbox.compile(expr=individual)
+
+    sum_error = 0
+    for datapoint in data_man.train_w_replacement.iterrows():
+
+        # Evaluate the error between predicted and actual
+        predicition = bool(func(*datapoint[1][1:31]))
+        #print("prediction: {0}", predicition)
+        actual = bool(datapoint[1][0])
+        #print("actual: {0}", actual)
+        if not(predicition) is actual:
+            sum_error+=1
+
+    accuracy = (data_man.cancer_xs.shape[0] - sum_error) / data_man.cancer_xs.shape[0]
+    kappa = (accuracy - random_classifier_accuracy) / (1 - random_classifier_accuracy)
+    return kappa, 
+
+
 '''
 DEFINE TOOLBOX CONT.
 '''
 
-toolbox.register("evaluate", evalSymbReg) ## THIS CALLS THE EVALUATION FUNCTION
+toolbox.register("evaluate", evalSymbReg_W_Replacement) ## THIS CALLS THE EVALUATION FUNCTION
 #toolbox.register("select", tools.selTournament, tournsize=3, fit_attr="fitness") #single tournament selection  
 toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=1.6, fitness_first=True)
 toolbox.register("mate", gp.cxOnePoint)
@@ -186,4 +231,4 @@ def graph_max_fitness(log):
     plt.show()
 
 if(__name__ == "__main__"):
-    run(200, 500, 0.5, 0.08)
+    run(250, 500, 0.5, 0.08)
